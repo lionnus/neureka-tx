@@ -234,7 +234,6 @@ package neureka_package;
     logic                            norm_option_bias;
     logic                            norm_option_shift;
     logic                            weight_offset;
-    logic [31:0]                     weight_offset_scale;
     logic [$clog2(QUANT_CNT_SIZE):0] qw;       // weights quantization
     logic                            enable_streamout;
     logic                            depthwise;
@@ -266,15 +265,16 @@ package neureka_package;
 
 
   typedef struct packed {
-    logic [$clog2(QUANT_CNT_SIZE):0] qw;
-    logic [1:0] filter_mode;              // filter size
-    logic [$clog2(8):0] scale_shift;
-    logic                weight_offset;
-    logic                dw_weight_offset;
-    logic                clear;
-    logic [NEUREKA_COLUMN_SIZE-1:0] enable_block;
-    logic [$clog2(NEUREKA_QA_IN):0] block_cnt;
-    logic invalidate;
+    logic [$clog2(QUANT_CNT_SIZE):0]  qw;
+    logic [1:0]                       filter_mode;              // filter size
+    logic [$clog2(8):0]               scale_shift;
+    logic                             weight_offset;
+    logic [$clog2(MAX_SHIFT):0]       weight_offset_scale;
+    logic                             dw_weight_offset;
+    logic                             clear;
+    logic [NEUREKA_COLUMN_SIZE-1:0]   enable_block;
+    logic [$clog2(NEUREKA_QA_IN):0]   block_cnt;
+    logic                             invalidate;
   } ctrl_binconv_col_t;
 
   typedef struct packed {

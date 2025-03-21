@@ -915,15 +915,16 @@ module neureka_ctrl #(
   
 
   // propagate config to NEUREKA binconv array
-  assign ctrl_engine.ctrl_binconv_array.weight_offset                   = state==LOAD | state==WEIGHTOFFS;
-  assign ctrl_engine.ctrl_binconv_array.filter_mode                     = config_.filter_mode;
-  assign ctrl_engine.ctrl_binconv_array.depthwise_len                   = k_in_lim[$clog2(NEUREKA_TP_IN):0];
-  assign ctrl_engine.ctrl_binconv_array.mode_linear                     = config_.mode_linear;
-  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.padding_value           = config_.padding_value;
-  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.dw_accum                = (state==MATRIXVEC) & (config_.filter_mode == NEUREKA_FILTER_MODE_3X3_DW) & (state != WEIGHTOFFS);
-  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.ctrl_col.qw             = config_.weight_bits;
-  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.ctrl_col.filter_mode    = config_.filter_mode;
-  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.ctrl_col.weight_offset  = state==LOAD | state==WEIGHTOFFS;
+  assign ctrl_engine.ctrl_binconv_array.weight_offset                         = state==LOAD | state==WEIGHTOFFS;
+  assign ctrl_engine.ctrl_binconv_array.filter_mode                           = config_.filter_mode;
+  assign ctrl_engine.ctrl_binconv_array.depthwise_len                         = k_in_lim[$clog2(NEUREKA_TP_IN):0];
+  assign ctrl_engine.ctrl_binconv_array.mode_linear                           = config_.mode_linear;
+  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.padding_value                 = config_.padding_value;
+  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.dw_accum                      = (state==MATRIXVEC) & (config_.filter_mode == NEUREKA_FILTER_MODE_3X3_DW) & (state != WEIGHTOFFS);
+  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.ctrl_col.qw                   = config_.weight_bits;
+  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.ctrl_col.filter_mode          = config_.filter_mode;
+  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.ctrl_col.weight_offset        = state==LOAD | state==WEIGHTOFFS;
+  assign ctrl_engine.ctrl_binconv_array.ctrl_pe.ctrl_col.weight_offset_scale  = config_.weight_offset_scale;
   
   
   assign ctrl_engine.ctrl_binconv_array.enable_pe = enable_pe;
@@ -1013,7 +1014,6 @@ module neureka_ctrl #(
   assign ctrl_engine.ctrl_accumulator.qw                  = config_.filter_mode == NEUREKA_FILTER_MODE_1X1 ? '0 : 
                                                               config_.weight_bits;
   assign ctrl_engine.ctrl_accumulator.enable_streamout    = enable_pe;
-  assign ctrl_engine.ctrl_accumulator.weight_offset_scale = config_.weight_offset_scale;
   assign ctrl_engine.ctrl_accumulator.norm_option_bias    = config_.norm_option_bias;
   assign ctrl_engine.ctrl_accumulator.norm_option_shift   = config_.norm_option_shift;
 
