@@ -153,7 +153,7 @@ module neureka_accumulator_normquant #(
   always_comb
   begin
     ctrl_normquant = ctrl_i.ctrl_normquant;
-    ctrl_normquant.start = (fsm_state_q == AQ_NORMQUANT) ? 1'b1 : (fsm_state_q == AQ_ACCUM & ctrl_i.weight_offset == 1) ? 1'b1 : 1'b0;
+    ctrl_normquant.start = (fsm_state_q == AQ_NORMQUANT);
   end
  
   assign streamin_i.ready = ~ctrl_i.enable_streamout ? 1'b1 : 
@@ -225,7 +225,7 @@ module neureka_accumulator_normquant #(
   assign clk_en_state          = ctrl_i.last_pe | clk_en_gated;
   assign clk_en_regs           = (ctrl_i.enable_streamout & (fsm_state_q != AQ_IDLE)) | accumulator_clr;
   assign clk_en_normquant      = (ctrl_i.enable_streamout & ((fsm_state_q == AQ_NORMQUANT
-                                                           || fsm_state_q == AQ_NORMQUANT_SHIFT))) | accumulator_clr | ctrl_i.weight_offset;
+                                                           || fsm_state_q == AQ_NORMQUANT_SHIFT))) | accumulator_clr;
   assign clk_en_normquant_bias = (ctrl_i.enable_streamout & (fsm_state_q == AQ_NORMQUANT
                                                           || fsm_state_q == AQ_NORMQUANT_BIAS)) | accumulator_clr;
 
@@ -340,18 +340,18 @@ module neureka_accumulator_normquant #(
   );
 
   
-  assign normquant_in = ctrl_i.weight_offset ? { 96'b0, $signed(conv_i.data) } : (ctrl_i.norm_mode == NEUREKA_MODE_32B) ? {96'b0,{rdata}}: rdata_wide;
+  assign normquant_in = (ctrl_i.norm_mode == NEUREKA_MODE_32B) ? {96'b0,{rdata}}: rdata_wide;
 
   assign norm_data_8b  = norm_i.data;
   assign norm_data_16b = norm_i.data;
-  assign norm_data_32b = ctrl_i.weight_offset ? {NEUREKA_MEM_BANDWIDTH/32 {ctrl_i.weight_offset_scale}} : norm_i.data;
+  assign norm_data_32b = norm_i.data;// TODO: Remove ctrl_i.weight_offset ? {NEUREKA_MEM_BANDWIDTH/32 {ctrl_i.weight_offset_scale}} : norm_i.data;
   
   generate
     for(genvar ii=0; ii<NMULT; ii++) begin : norm_mult_gen
       always_comb begin
         norm_mult [ii] = '0;
         norm_shift[ii] = shift_data_stage2_q[ii];
-        if(ctrl_i.norm_mode == NEUREKA_MODE_32B || ctrl_i.weight_offset==1'b1) begin // actually 24 bits!
+        if(ctrl_i.norm_mode == NEUREKA_MODE_32B) begin // actually 24 bits!
           norm_mult[ii]  = norm_data_32b[addr_cnt_stage1_q[2:0]][(ii+1)*8-1:ii*8];
         end
         else if(ctrl_i.norm_mode == NEUREKA_MODE_16B) begin
@@ -370,7 +370,7 @@ module neureka_accumulator_normquant #(
           shift_data_stage2_d[ii] = '0;
         end
         else if(shift_data_stage2_en_q) begin
-          if(ctrl_i.norm_mode == NEUREKA_MODE_32B || ctrl_i.weight_offset==1'b1) begin // actually 24 bits!
+          if(ctrl_i.norm_mode == NEUREKA_MODE_32B) begin // actually 24 bits!
             shift_data_stage2_d[ii] = shift_data_stage1_q [addr_cnt_stage1_q[5:0]];
           end
           else if(ctrl_i.norm_mode == NEUREKA_MODE_16B) begin
@@ -468,14 +468,14 @@ module neureka_accumulator_normquant #(
 
     // selector for addresses
     if(fsm_state_q == AQ_ACCUM) begin
-      partial_sum = depthwise_accumulator_active ? dw_conv_data : ctrl_i.weight_offset ? {AP{normalized_q[ACC-1:0]}} : {AP{conv_data}};
-      we_all      = ctrl_i.weight_offset ? OUTREG_NORMQUANT ? conv_handshake_2q : conv_handshake_q : conv_handshake_d; // during weight offset the normalization takes 1 cycle thus handshaking with conv_handshake_q (2 cycles if normquant is pipelined, so conv_handshake_2q)
+      partial_sum = depthwise_accumulator_active ? dw_conv_data : ctrl_i.weight_offset ? {AP{$signed(~conv_data+1)}}: {AP{conv_data}}; // In weight offset mode, the data is negated and added with 1 to get the 2's complement
+      wdata_all   = ctrl_i.weight_offset & (!ctrl_i.depthwise) ? {AP/WIDTH_FACTOR{partial_sum}} : add_wdata_all;//TODO: not for depthwise?
+      we_all      = conv_handshake_d;
       we          = 1'b0;
-      adder_enable= ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '1 :
+      adder_enable= ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '0 :
                     depthwise_accumulator_active  ? '1 : 
                     ctrl_i.weight_offset & (ctrl_i.depthwise)  ? 32'h01<<addr_cnt_stage2_q : 32'h01<<addr_cnt_stage1_q;
-      we_all_mask = adder_enable;
-     
+      we_all_mask = ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '1 : adder_enable;
     end
     else if(fsm_state_q == AQ_NORMQUANT) begin
       partial_sum = ctrl_i.norm_mode==NEUREKA_MODE_8B ? {8{normalized_q}} : 
@@ -562,7 +562,7 @@ module neureka_accumulator_normquant #(
       end
 
       AQ_ACCUM : begin
-        if((full_accumulation_cnt_q == ctrl_i.full_accumulation_len-1) & full_accumulation_cnt_en) begin
+        if((ctrl_i.weight_offset && conv_handshake_d) || ((full_accumulation_cnt_q == ctrl_i.full_accumulation_len-1) & full_accumulation_cnt_en)) begin
           fsm_state_d = AQ_ACCUM_DONE;
         end
         

@@ -270,15 +270,15 @@ module neureka_binconv_column #(
  always_comb begin
     binconv_col_pres_data_d = binconv_col_pres_data_q;
     binconv_col_pres_valid_d = binconv_col_pres_valid_q;
-    if(clear_int) begin 
+    if(clear_int) begin
       binconv_col_pres_data_d = '0;
       binconv_col_pres_valid_d = '0;
-    end else begin 
+    end else begin
       binconv_col_pres_data_d = binconv_col_pres_data;
       if(pres.ready)
         binconv_col_pres_valid_d = pres.valid;
-    end  
-  end   
+    end
+  end
 
   always_ff @(posedge clk_gated or negedge rst_ni)
     begin
@@ -292,7 +292,8 @@ module neureka_binconv_column #(
     end
 
   generate
-    assign scale_ctrl.shift_sel = (ctrl_i.filter_mode == NEUREKA_FILTER_MODE_3X3_DW & ctrl_i.weight_offset) ? '0 :
+    assign scale_ctrl.shift_sel = (ctrl_i.filter_mode == NEUREKA_FILTER_MODE_3X3_DW) ? '0 : //TODO: Check if this is correct
+                                  (ctrl_i.weight_offset) ? ctrl_i.weight_offset_scale : // Take the shift from the weight offset scale
                                   (ctrl_i.filter_mode == NEUREKA_FILTER_MODE_1X1)     ? ctrl_i.scale_shift :
                                   ctrl_i.block_cnt;
     assign scale_ctrl.invert = 1'b0;
