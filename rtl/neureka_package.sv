@@ -268,9 +268,9 @@ package neureka_package;
     logic [$clog2(QUANT_CNT_SIZE):0]  qw;
     logic [1:0]                       filter_mode;              // filter size
     logic [$clog2(8):0]               scale_shift;
-    logic                             weight_offset;
-    logic [$clog2(MAX_SHIFT):0]       weight_offset_scale;
-    logic                             dw_weight_offset;
+    logic                             weight_offset;            // Equals 1 during weight offset mode
+    logic [$clog2(MAX_SHIFT):0]       weight_offset_scale;      // Contains the number of bits to shift the weight offset
+    logic                             weight_offset_1x1;
     logic                             clear;
     logic [NEUREKA_COLUMN_SIZE-1:0]   enable_block;
     logic [$clog2(NEUREKA_QA_IN):0]   block_cnt;

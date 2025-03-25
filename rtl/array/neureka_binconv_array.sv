@@ -315,11 +315,11 @@ module neureka_binconv_array #(
         ctrl_pe = ctrl_i.ctrl_pe;
         ctrl_pe.ctrl_col.enable_block = ctrl_i.ctrl_pe.ctrl_col.enable_block;
         ctrl_pe.ctrl_col.block_cnt = block_cnt_q;
-        // in depthwise mode, MACs are enabled sequentially in the channel in dimension
-        ctrl_pe.enable_col = ctrl_i.ctrl_pe.ctrl_col.filter_mode == NEUREKA_FILTER_MODE_3X3_DW ? ctrl_i.ctrl_pe.enable_col & depthwise_cnt_oh_q :
+        // in depthwise mode, MACs are enabled sequentially in the channel in dimension, but only outside of weightoffset phase
+        ctrl_pe.enable_col = (ctrl_i.ctrl_pe.ctrl_col.filter_mode == NEUREKA_FILTER_MODE_3X3_DW && ~ctrl_i.ctrl_pe.ctrl_col.weight_offset) ? ctrl_i.ctrl_pe.enable_col & depthwise_cnt_oh_q :
                                                                                                                    ctrl_i.ctrl_pe.enable_col;
         // in depthwise mode, partial sum valid signals have to be invalidated in some cases (check)
-        ctrl_pe.ctrl_col.invalidate = ctrl_i.ctrl_pe.ctrl_col.filter_mode == NEUREKA_FILTER_MODE_3X3_DW & ctrl_i.ctrl_pe.ctrl_col.weight_offset ? block_invalidate_q : 1'b0;
+        ctrl_pe.ctrl_col.invalidate = '0;// TODO Remove signal completely, ctrl_i.ctrl_pe.ctrl_col.filter_mode == NEUREKA_FILTER_MODE_3X3_DW & ctrl_i.ctrl_pe.ctrl_col.weight_offset ? block_invalidate_q : 1'b0;
       end
 
       // column instantiation
@@ -383,13 +383,8 @@ module neureka_binconv_array #(
   end
 
   // counter used for enable control
-  assign depthwise_cnt_en = ctrl_i.ctrl_pe.ctrl_col.filter_mode != NEUREKA_FILTER_MODE_3X3_DW ? '0 :
-                            ctrl_i.ctrl_pe.ctrl_col.weight_offset ? block_cnt_en :
+  assign depthwise_cnt_en = (ctrl_i.ctrl_pe.ctrl_col.filter_mode != NEUREKA_FILTER_MODE_3X3_DW || ctrl_i.ctrl_pe.ctrl_col.weight_offset) ? '0 :
                             block_cnt_en & (block_cnt_q == ctrl_i.ctrl_pe.ctrl_col.qw-1);
-
-
-
-
 
   always_comb
   begin

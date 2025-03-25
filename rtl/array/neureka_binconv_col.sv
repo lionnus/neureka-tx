@@ -140,7 +140,7 @@ module neureka_binconv_column #(
       assign popcount[ii].strb  = '1;
 
       // 1x8bit "multipliers" (i.e., simple multiplexers)
-      assign popcount[ii].data  = ctrl_i.dw_weight_offset & weight_int[ii].data & ctrl_i.enable_block[ii]? activation_i[ii].data : '0;
+      assign popcount[ii].data  = ctrl_i.weight_offset_1x1 & weight_int[ii].data & ctrl_i.enable_block[ii]? activation_i[ii].data : '0;
       assign weight_i[ii].ready = weight_int[0].ready;
 
       // ========================================================================
@@ -292,10 +292,9 @@ module neureka_binconv_column #(
     end
 
   generate
-    assign scale_ctrl.shift_sel = (ctrl_i.filter_mode == NEUREKA_FILTER_MODE_3X3_DW) ? '0 : //TODO: Check if this is correct
-                                  (ctrl_i.weight_offset) ? ctrl_i.weight_offset_scale : // Take the shift from the weight offset scale
+    assign scale_ctrl.shift_sel = (ctrl_i.weight_offset) ? ctrl_i.weight_offset_scale : // Take the shift from the weight offset scale
                                   (ctrl_i.filter_mode == NEUREKA_FILTER_MODE_1X1)     ? ctrl_i.scale_shift :
-                                  ctrl_i.block_cnt;
+                                  ctrl_i.block_cnt; // For bit-serial modes(3x3 and 3x3 DW)
     assign scale_ctrl.invert = 1'b0;
   endgenerate
 

@@ -123,8 +123,11 @@ module neureka_accumulator_normquant #(
 
   assign depthwise_accumulator_active = ctrl_i.dw_accum; 
 
-  logic [31:0] conv_data; //signed extension 
+  logic [31:0] conv_data;
+  logic [31:0] conv_data_neg; // negated data for weight offset mode
   logic [AP*ACC-1:0] dw_conv_data;
+  logic [AP*ACC-1:0] dw_conv_data_neg; // negated data for weight offset mode
+
   logic norm_ready_en;
   assign norm_ready_en = fsm_state_q == AQ_NORMQUANT_BIAS ? (addr_cnt_stage1_q[2] & addr_cnt_stage1_q[1] & addr_cnt_stage1_q[0]) | (addr_cnt_stage2_q == ctrl_i.bias_len-1 && addr_cnt_en_stage1_q == 1'b1) :
                                                        (addr_cnt_stage1_q[2] & addr_cnt_stage1_q[1] & addr_cnt_stage1_q[0]) | (addr_cnt_stage2_q == ctrl_i.scale_len-1 && addr_cnt_en_stage1_q == 1'b1); // norm_ready when addr_cnt is full, or in the last cycle of AQ_NORMQUANT
@@ -138,14 +141,16 @@ module neureka_accumulator_normquant #(
                          ctrl_i.bias_len > 8  ? 1 : 0;
 
   assign conv_data = $signed(conv_i.data);
+  assign conv_data_neg = $signed(~conv_i.data+1);
   generate  
       for(genvar ii=0; ii<AP; ii++) begin
       always_comb begin
-        dw_conv_data[(ii+1)*ACC-1:ii*ACC] = $signed(conv_dw_i[ii].data); 
+        dw_conv_data[(ii+1)*ACC-1:ii*ACC] = $signed(conv_dw_i[ii].data);
+        dw_conv_data_neg[(ii+1)*ACC-1:ii*ACC] = $signed(~conv_dw_i[ii].data+1);
         conv_dw_i[ii].ready               = conv_i.ready;
       end 
     end
-  endgenerate 
+  endgenerate
 
   always_comb
   begin
@@ -422,14 +427,16 @@ module neureka_accumulator_normquant #(
 
     // selector for addresses
     if(fsm_state_q == AQ_ACCUM) begin
-      partial_sum = depthwise_accumulator_active ? dw_conv_data : ctrl_i.weight_offset ? {AP{$signed(~conv_data+1)}}: {AP{conv_data}}; // In weight offset mode, the data is negated and added with 1 to get the 2's complement
-      // wdata_all   = ctrl_i.weight_offset & (!ctrl_i.depthwise) ? {AP/WIDTH_FACTOR{partial_sum}} : add_wdata_all;//TODO: not for depthwise?
-      we_all      = conv_handshake_d;
+      partial_sum = depthwise_accumulator_active ? dw_conv_data :
+                    (ctrl_i.weight_offset && ctrl_i.depthwise) ? dw_conv_data_neg :
+                    (ctrl_i.weight_offset ? {AP{conv_data_neg}} : {AP{conv_data}}); // In weight offset mode, the data is negated and added with 1 to get the 2's complement
+      bypass      = ctrl_i.weight_offset & ctrl_i.depthwise ? '1 : '0;
+      we_all      = conv_handshake_d; // TODO: check if this is okay if adder is used. 
       we          = 1'b0;
       adder_enable= ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '1 :
-                    depthwise_accumulator_active  ? '1 : 
-                    ctrl_i.weight_offset & (ctrl_i.depthwise)  ? 32'h01<<addr_cnt_stage2_q : 32'h01<<addr_cnt_stage1_q;
-      we_all_mask = ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '1 : adder_enable;
+                    depthwise_accumulator_active  ? '1 :
+                    ctrl_i.weight_offset & (ctrl_i.depthwise)  ? '1 : 32'h01<<addr_cnt_stage1_q;
+      we_all_mask = ctrl_i.weight_offset ? '1 : adder_enable;
     end
     else if(fsm_state_q == AQ_NORMQUANT) begin
       partial_sum = ctrl_i.norm_mode==NEUREKA_MODE_8B ? {8{normalized_q}} : 

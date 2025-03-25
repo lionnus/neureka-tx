@@ -118,7 +118,7 @@ module neureka_binconv_pe #(
       begin
         ctrl_col = ctrl_i.ctrl_col;
         ctrl_col.scale_shift = ii/4; // used for 1x1. Every 4 columns with each 8 out of 9 blocks take: 4*8= 32 inputs.
-        ctrl_col.dw_weight_offset = ctrl_i.enable_col[ii] | depthwise_accumulator_active;
+        ctrl_col.weight_offset_1x1 = ctrl_i.enable_col[ii] | depthwise_accumulator_active;;
         ctrl_col.enable_block = ctrl_col.enable_block & ctrl_i.enable_col_pw[9*(ii_rem_4+1)-1:9*ii_rem_4];
       end
 
