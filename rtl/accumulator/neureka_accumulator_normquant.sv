@@ -423,10 +423,10 @@ module neureka_accumulator_normquant #(
     // selector for addresses
     if(fsm_state_q == AQ_ACCUM) begin
       partial_sum = depthwise_accumulator_active ? dw_conv_data : ctrl_i.weight_offset ? {AP{$signed(~conv_data+1)}}: {AP{conv_data}}; // In weight offset mode, the data is negated and added with 1 to get the 2's complement
-      wdata_all   = ctrl_i.weight_offset & (!ctrl_i.depthwise) ? {AP/WIDTH_FACTOR{partial_sum}} : add_wdata_all;//TODO: not for depthwise?
+      // wdata_all   = ctrl_i.weight_offset & (!ctrl_i.depthwise) ? {AP/WIDTH_FACTOR{partial_sum}} : add_wdata_all;//TODO: not for depthwise?
       we_all      = conv_handshake_d;
       we          = 1'b0;
-      adder_enable= ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '0 :
+      adder_enable= ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '1 :
                     depthwise_accumulator_active  ? '1 : 
                     ctrl_i.weight_offset & (ctrl_i.depthwise)  ? 32'h01<<addr_cnt_stage2_q : 32'h01<<addr_cnt_stage1_q;
       we_all_mask = ctrl_i.weight_offset & (!ctrl_i.depthwise) ? '1 : adder_enable;
